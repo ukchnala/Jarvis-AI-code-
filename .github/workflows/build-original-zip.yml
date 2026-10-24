@@ -1,0 +1,60 @@
+name: Build APK from original source ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate original source ZIP
+        id: source
+        shell: bash
+        run: |
+          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Upload the original jarvis-ai ZIP to the repository root first." >&2
+            exit 1
+          fi
+          echo "zip=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Extract source ZIP without patches
+        shell: bash
+        run: |
+          mkdir source
+          unzip -q "${{ steps.source.outputs.zip }}" -d source
+          PROJECT_DIR="$(find source -type f -name settings.gradle.kts -print -quit | xargs -r dirname)"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "settings.gradle.kts not found in the uploaded ZIP." >&2
+            exit 1
+          fi
+          echo "$PROJECT_DIR" > project_dir.txt
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          PROJECT_DIR="$(cat project_dir.txt)"
+          cd "$PROJECT_DIR"
+          gradle --no-daemon --stacktrace assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-original-source-debug-apk
+          path: source/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
