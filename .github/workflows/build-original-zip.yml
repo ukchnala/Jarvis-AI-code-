@@ -58,6 +58,19 @@ jobs:
           fi
           echo "$PROJECT_DIR" > project_dir.txt
 
+      - name: Create temporary Android debug keystore if missing
+        shell: bash
+        run: |
+          PROJECT_DIR="$(cat project_dir.txt)"
+          if [ ! -f "$PROJECT_DIR/debug.keystore" ]; then
+            keytool -genkeypair -v \
+              -keystore "$PROJECT_DIR/debug.keystore" \
+              -storepass android -keypass android \
+              -alias androiddebugkey \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA -keysize 2048 -validity 10000
+          fi
+
       - name: Build debug APK
         shell: bash
         run: |
