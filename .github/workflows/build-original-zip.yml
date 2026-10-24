@@ -1,6 +1,8 @@
 name: Build APK from original source ZIP
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -12,16 +14,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Locate original source ZIP
+      - name: Locate uploaded original archive
         id: source
         shell: bash
         run: |
-          ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
-          if [ -z "$ZIP_FILE" ]; then
-            echo "Upload the original jarvis-ai ZIP to the repository root first." >&2
+          if [ -f "./jarvis AI code" ]; then
+            ZIP_FILE="./jarvis AI code"
+          else
+            ZIP_FILE="$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)"
+          fi
+          if [ -z "$ZIP_FILE" ] || [ ! -f "$ZIP_FILE" ]; then
+            echo "Original uploaded archive not found in repository root." >&2
             exit 1
           fi
           echo "zip=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+          file "$ZIP_FILE"
+          unzip -t "$ZIP_FILE" >/dev/null
 
       - uses: actions/setup-java@v4
         with:
@@ -33,14 +41,14 @@ jobs:
       - name: Install Android SDK
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Extract source ZIP without patches
+      - name: Extract original archive without patches
         shell: bash
         run: |
           mkdir source
           unzip -q "${{ steps.source.outputs.zip }}" -d source
           PROJECT_DIR="$(find source -type f -name settings.gradle.kts -print -quit | xargs -r dirname)"
           if [ -z "$PROJECT_DIR" ]; then
-            echo "settings.gradle.kts not found in the uploaded ZIP." >&2
+            echo "settings.gradle.kts not found in original archive." >&2
             exit 1
           fi
           echo "$PROJECT_DIR" > project_dir.txt
