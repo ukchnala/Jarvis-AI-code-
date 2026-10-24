@@ -71,6 +71,15 @@ jobs:
               -keyalg RSA -keysize 2048 -validity 10000
           fi
 
+      - name: Add Gemini key
+        shell: bash
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          PROJECT_DIR="$(cat project_dir.txt)"
+          echo "GEMINI_API_KEY=$GEMINI_API_KEY" > "$PROJECT_DIR/.env"
+          echo "GEMINI_API_KEY=$GEMINI_API_KEY" > "$PROJECT_DIR/app/.env"
+
       - name: Build debug APK
         shell: bash
         run: |
@@ -80,7 +89,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: jarvis-original-source-debug-apk
+          name: jarvis-apk
           path: source/**/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 7
